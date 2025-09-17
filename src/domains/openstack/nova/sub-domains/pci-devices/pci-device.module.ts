@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { LoggerModule } from 'src/common/service-modules/logger.module';
 import { PCIDeviceService } from './pci-device.service';
 import { PCIDevice } from './entity/pci-device.entity';
-import { OPENSTACK_DB_CONNECTION_NAME } from 'src/config';
+import { OPENSTACK_DB_CONNECTION_NAME } from 'src/common/constants';
 
 @Module({
   imports: [
@@ -15,4 +15,4 @@ import { OPENSTACK_DB_CONNECTION_NAME } from 'src/config';
   providers: [PCIDeviceService],
   exports: [PCIDeviceService],
 })
-export class PCIDeviceModule {}
+export class PCIDeviceModule { }

@@ -5,8 +5,8 @@ export default registerAs(
   'openstack',
   (): openstackConfigInterface => ({
     baseUrl: process.env.OPENSTACK_BASE_URL || 'openstack.acecloudhosting.com',
-    timeout: parseInt(process.env.OPENSTACK_TIMEOUT) || 30000,
-    tokenTimeoutInMinutes: parseInt(process.env.OPENSTACK_TOKEN_TIMEOUT_IN_MINUTES) || 50,
+    timeout: parseInt(process.env.OPENSTACK_TIMEOUT ?? '30000') || 30000,
+    tokenTimeoutInMinutes: parseInt(process.env.OPENSTACK_TOKEN_TIMEOUT_IN_MINUTES ?? '50') || 50,
     service: {
       compute: process.env.OPENSTACK_COMPUTE_SERVICE || '8774/v2.1',
       identity: process.env.OPENSTACK_IDENTITY_SERVICE || '5000/v3',
@@ -20,7 +20,7 @@ export default registerAs(
     database: {
       noida: {
         host: process.env.OPENSTACK_DB_NOIDA_HOST || 'localhost',
-        port: parseInt(process.env.OPENSTACK_DB_NOIDA_PORT) || 3306,
+        port: parseInt(process.env.OPENSTACK_DB_NOIDA_PORT ?? '3306') || 3306,
         username: process.env.OPENSTACK_DB_NOIDA_USER || 'root',
         password: process.env.OPENSTACK_DB_NOIDA_PASSWORD || 'password',
         database: {
@@ -30,7 +30,7 @@ export default registerAs(
       },
       atlanta: {
         host: process.env.OPENSTACK_DB_ATLANTA_HOST || 'localhost',
-        port: parseInt(process.env.OPENSTACK_DB_ATLANTA_PORT) || 3306,
+        port: parseInt(process.env.OPENSTACK_DB_ATLANTA_PORT ?? '3306') || 3306,
         username: process.env.OPENSTACK_DB_ATLANTA_USER || 'root',
         password: process.env.OPENSTACK_DB_ATLANTA_PASSWORD || 'password',
         database: {
@@ -40,7 +40,7 @@ export default registerAs(
       },
       mumbai: {
         host: process.env.OPENSTACK_DB_MUMBAI_HOST || 'localhost',
-        port: parseInt(process.env.OPENSTACK_DB_MUMBAI_PORT) || 3306,
+        port: parseInt(process.env.OPENSTACK_DB_MUMBAI_PORT ?? '3306') || 3306,
         username: process.env.OPENSTACK_DB_MUMBAI_USER || 'root',
         password: process.env.OPENSTACK_DB_MUMBAI_PASSWORD || 'password',
         database: {
