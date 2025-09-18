@@ -137,6 +137,17 @@ const SERVICE_NAME = {
   },
 };
 
+const TRUE: boolean = true;
+
+const SERVER_ERROR_MESSAGE: string = 'Unable to process this request. Please try again later.';
+
+const ERROR_RESPONSE = {
+  error: TRUE,
+  message: SERVER_ERROR_MESSAGE,
+};
+
+const SUCCESS: string = 'Success';
+
 export {
   REGIONS,
   SERVICE_PROVIDERS,
@@ -146,5 +157,7 @@ export {
   REGION_MAPPING,
   OPENSTACK_DB_CONNECTION_NAME,
   OS_API_VERSION,
-  SERVICE_NAME
+  SERVICE_NAME,
+  ERROR_RESPONSE,
+  SUCCESS
 };
