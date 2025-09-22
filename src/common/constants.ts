@@ -72,6 +72,82 @@ const REGION_MAPPING = {
   },
 };
 
+const OPENSTACK_DB_CONNECTION_NAME: Record<string, string> = {
+  noida: 'ap-south-noi-1-nova',
+  atlanta: 'us-east-at-1-nova',
+  mumbai: 'ap-south-mum-1-nova',
+};
+
+const OS_API_VERSION = {
+  compute: 'v2.1',
+  identity: 'v3',
+  glance: 'v2',
+  cinder: 'v3',
+  neutron: 'v2.0',
+  clustering: 'v1',
+  octavia: 'v2',
+  orchestration: 'v1',
+};
+
+const SERVICE_NAME = {
+  COMPUTE: {
+    titleCase: 'Compute',
+    upperCase: 'COMPUTE',
+    lowerCase: 'compute',
+  },
+  IDENTITY: {
+    titleCase: 'Identity',
+    upperCase: 'IDENTITY',
+    lowerCase: 'identity',
+  },
+  GLANCE: {
+    titleCase: 'Glance',
+    upperCase: 'GLANCE',
+    lowerCase: 'glance',
+  },
+  CINDER: {
+    titleCase: 'Cinder',
+    upperCase: 'CINDER',
+    lowerCase: 'cinder',
+  },
+  NEUTRON: {
+    titleCase: 'Neutron',
+    upperCase: 'NEUTRON',
+    lowerCase: 'neutron',
+  },
+  CLUSTERING: {
+    titleCase: 'Clustering',
+    upperCase: 'CLUSTERING',
+    lowerCase: 'clustering',
+  },
+  OCTAVIA: {
+    titleCase: 'Octavia',
+    upperCase: 'OCTAVIA',
+    lowerCase: 'octavia',
+  },
+  ORCHESTRATION: {
+    titleCase: 'Orchestration',
+    upperCase: 'ORCHESTRATION',
+    lowerCase: 'orchestration',
+  },
+  E2E: {
+    titleCase: 'E2e',
+    upperCase: 'E2E',
+    lowerCase: 'e2e',
+  },
+};
+
+const TRUE: boolean = true;
+
+const SERVER_ERROR_MESSAGE: string = 'Unable to process this request. Please try again later.';
+
+const ERROR_RESPONSE = {
+  error: TRUE,
+  message: SERVER_ERROR_MESSAGE,
+};
+
+const SUCCESS: string = 'Success';
+
 export {
   REGIONS,
   SERVICE_PROVIDERS,
@@ -79,4 +155,9 @@ export {
   CLOUD_REGIONS,
   SERVICE_IDENTIFIER,
   REGION_MAPPING,
+  OPENSTACK_DB_CONNECTION_NAME,
+  OS_API_VERSION,
+  SERVICE_NAME,
+  ERROR_RESPONSE,
+  SUCCESS
 };

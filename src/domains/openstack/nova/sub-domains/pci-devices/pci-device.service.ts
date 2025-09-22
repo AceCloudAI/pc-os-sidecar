@@ -4,7 +4,7 @@ import { Repository, IsNull } from 'typeorm';
 import { PCIDevice } from './entity/pci-device.entity';
 import { OPENSTACK_DB_CONNECTION_NAME, REGION_HOST_NAME } from 'src/common/constants';
 import { INVALID_REGION } from 'src/domains/cloud/language/en/cloud.en';
-import { REPOSITORY_NOT_SET_ERROR } from 'src/domains/pci-devices/language/en/pci-devices.en';
+import { REPOSITORY_NOT_SET_ERROR } from 'src/domains/openstack/nova/sub-domains/pci-devices/language/en/pci-devices.en';
 
 @Injectable()
 export class PCIDeviceService {
@@ -17,7 +17,7 @@ export class PCIDeviceService {
     private readonly pciDeviceMumbaiRepository: Repository<PCIDevice>,
     @InjectRepository(PCIDevice, OPENSTACK_DB_CONNECTION_NAME.atlanta)
     private readonly pciDeviceAtlantaRepository: Repository<PCIDevice>,
-  ) {}
+  ) { }
 
   async fetchAvailableInventory(): Promise<object> {
     if (!this.pciDeviceRepository) {

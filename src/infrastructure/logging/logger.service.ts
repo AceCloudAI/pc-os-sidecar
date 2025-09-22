@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/nestjs';
 import { Injectable, ConsoleLogger, HttpStatus } from '@nestjs/common';
-import { LoggingConfigService } from '../../config';
-import { ErrorLogInterface, ErrorMetaDataInterface } from '../../common/interfaces';
+import { LoggingConfigService } from 'src/config/logging/config.service';
+import { ErrorLogInterface, ErrorMetaDataInterface } from 'src/common/interfaces';
 
 @Injectable()
 export class CustomLoggerService extends ConsoleLogger {

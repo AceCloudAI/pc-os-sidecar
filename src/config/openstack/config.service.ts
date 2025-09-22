@@ -12,15 +12,15 @@ export class OpenstackConfigService {
   }
 
   get baseUrl(): string {
-    return this.configService.get<string>('openstack.baseUrl');
+    return this.configService.get<string>('openstack.baseUrl') ??  'openstack.acecloudhosting.com';
   }
 
   get timeout(): number {
-    return this.configService.get<number>('openstack.timeout');
+    return this.configService.get<number>('openstack.timeout') ?? 30000;
   }
 
   get tokenTimeoutInMinutes(): number {
-    return this.configService.get<number>('openstack.tokenTimeoutInMinutes');
+    return this.configService.get<number>('openstack.tokenTimeoutInMinutes') ?? 50;
   }
 
   get computeService(): string {
@@ -67,75 +67,75 @@ export class OpenstackConfigService {
 
   // Database configurations - Noida
   get noidaHost(): string {
-    return this.configService.get<string>('openstack.database.noida.host');
+    return this.configService.get<string>('openstack.database.noida.host') ?? 'localhost';
   }
 
   get noidaPort(): number {
-    return this.configService.get<number>('openstack.database.noida.port');
+    return this.configService.get<number>('openstack.database.noida.port') ?? 3306;
   }
 
   get noidaUsername(): string {
-    return this.configService.get<string>('openstack.database.noida.username');
+    return this.configService.get<string>('openstack.database.noida.username') ?? 'root';
   }
 
   get noidaPassword(): string {
-    return this.configService.get<string>('openstack.database.noida.password');
+    return this.configService.get<string>('openstack.database.noida.password') ?? 'password';
   }
 
   get noidaNovaDatabase(): string {
-    return this.configService.get<string>('openstack.database.noida.database.nova');
+    return this.configService.get<string>('openstack.database.noida.database.nova') ?? 'nova';
   }
 
   // Database configurations - Atlanta
   get atlantaHost(): string {
-    return this.configService.get<string>('openstack.database.atlanta.host');
+    return this.configService.get<string>('openstack.database.atlanta.host') ?? 'localhost';
   }
 
   get atlantaPort(): number {
-    return this.configService.get<number>('openstack.database.atlanta.port');
+    return this.configService.get<number>('openstack.database.atlanta.port') ?? 3306;
   }
 
   get atlantaUsername(): string {
-    return this.configService.get<string>('openstack.database.atlanta.username');
+    return this.configService.get<string>('openstack.database.atlanta.username') ?? 'root';
   }
 
   get atlantaPassword(): string {
-    return this.configService.get<string>('openstack.database.atlanta.password');
+    return this.configService.get<string>('openstack.database.atlanta.password') ?? 'password';
   }
 
   get atlantaNovaDatabase(): string {
-    return this.configService.get<string>('openstack.database.atlanta.database.nova');
+    return this.configService.get<string>('openstack.database.atlanta.database.nova') ?? 'nova';
   }
 
   // Database configurations - Mumbai
   get mumbaiHost(): string {
-    return this.configService.get<string>('openstack.database.mumbai.host');
+    return this.configService.get<string>('openstack.database.mumbai.host') ?? 'localhost';
   }
 
   get mumbaiPort(): number {
-    return this.configService.get<number>('openstack.database.mumbai.port');
+    return this.configService.get<number>('openstack.database.mumbai.port') ?? 3306;
   }
 
   get mumbaiUsername(): string {
-    return this.configService.get<string>('openstack.database.mumbai.username');
+    return this.configService.get<string>('openstack.database.mumbai.username') ?? 'root';
   }
 
   get mumbaiPassword(): string {
-    return this.configService.get<string>('openstack.database.mumbai.password');
+    return this.configService.get<string>('openstack.database.mumbai.password') ?? 'password';
   }
 
   get mumbaiNovaDatabase(): string {
-    return this.configService.get<string>('openstack.database.mumbai.database.nova');
+    return this.configService.get<string>('openstack.database.mumbai.database.nova') ?? 'nova';
   }
   get mumbaiNovaApiDatabase(): string {
-    return this.configService.get<string>('openstack.database.mumbai.database.nova_api');
+    return this.configService.get<string>('openstack.database.mumbai.database.nova_api') ?? 'nova_api';
   }
 
   get noidaNovaApiDatabase(): string {
-    return this.configService.get<string>('openstack.database.noida.database.nova_api');
+    return this.configService.get<string>('openstack.database.noida.database.nova_api') ?? 'nova_api';
   }
 
   get atlantaNovaApiDatabase(): string {
-    return this.configService.get<string>('openstack.database.atlanta.database.nova_api');
+    return this.configService.get<string>('openstack.database.atlanta.database.nova_api') ?? 'nova_api';
   }
 }
