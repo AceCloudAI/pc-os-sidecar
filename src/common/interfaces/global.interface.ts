@@ -28,7 +28,7 @@ export interface ErrorMetaDataInterface {
 export interface ErrorLogInterface {
     request: FastifyRequest;
     functionName?: string;
-    error: any;
+    error: unknown;
     config?: AxiosRequestConfig;
 }
 

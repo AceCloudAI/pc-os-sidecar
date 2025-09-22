@@ -1,15 +1,15 @@
 import {
-    ApiResponseInterface,
-    JwtPayloadInterface,
-    ErrorLogInterface,
-    ErrorMetaDataInterface,
-    FlavorInterface
+  ApiResponseInterface,
+  JwtPayloadInterface,
+  ErrorLogInterface,
+  ErrorMetaDataInterface,
+  FlavorInterface,
 } from 'src/common/interfaces/global.interface';
 
-export type {
-    ApiResponseInterface,
-    JwtPayloadInterface,
-    ErrorLogInterface,
-    ErrorMetaDataInterface,
-    FlavorInterface
+export {
+  ApiResponseInterface,
+  JwtPayloadInterface,
+  ErrorLogInterface,
+  ErrorMetaDataInterface,
+  FlavorInterface,
 };

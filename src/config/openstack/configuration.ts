@@ -1,9 +1,9 @@
 import { registerAs } from '@nestjs/config';
-import { openstackConfigInterface } from 'src/domains/openstack/interfaces/openstack.interface';
+import { OpenstackConfigInterface } from 'src/domains/openstack/interfaces/openstack.interface';
 
 export default registerAs(
   'openstack',
-  (): openstackConfigInterface => ({
+  (): OpenstackConfigInterface => ({
     baseUrl: process.env.OPENSTACK_BASE_URL || 'openstack.acecloudhosting.com',
     timeout: parseInt(process.env.OPENSTACK_TIMEOUT ?? '30000') || 30000,
     tokenTimeoutInMinutes: parseInt(process.env.OPENSTACK_TOKEN_TIMEOUT_IN_MINUTES ?? '50') || 50,
