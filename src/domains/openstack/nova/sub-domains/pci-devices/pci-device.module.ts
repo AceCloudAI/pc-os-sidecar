@@ -2,8 +2,9 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LoggerModule } from 'src/common/service-modules/logger.module';
 import { PCIDeviceService } from './pci-device.service';
+import { PCIDeviceController } from './pci-device.controller';
 import { PCIDevice } from './entity/pci-device.entity';
-import { OPENSTACK_DB_CONNECTION_NAME } from 'src/config';
+import { OPENSTACK_DB_CONNECTION_NAME } from 'src/common/constants';
 
 @Module({
   imports: [
@@ -12,7 +13,8 @@ import { OPENSTACK_DB_CONNECTION_NAME } from 'src/config';
     TypeOrmModule.forFeature([PCIDevice], OPENSTACK_DB_CONNECTION_NAME.atlanta),
     LoggerModule,
   ],
+  controllers: [PCIDeviceController],
   providers: [PCIDeviceService],
   exports: [PCIDeviceService],
 })
-export class PCIDeviceModule {}
+export class PCIDeviceModule { }
