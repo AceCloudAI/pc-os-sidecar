@@ -1,0 +1,383 @@
+pipeline {
+    agent {
+        label 'build-agent-one'
+    }
+    parameters {
+        choice(name: 'SONAR_CHOICE', choices: ['No', 'Yes'], description: 'Skip SonarQube Quality Gate Violations?')
+        choice(name: 'DT_CHOICE', choices: ['Yes', 'No'], description: 'Skip Dependency Track Policy Violations?')
+        choice(name: 'DL_SD_CHOICE', choices: ['No', 'Yes'], description: 'Send Mail to Public Cloud Software Development?')
+        choice(name: 'ROLLBACK', choices: ['Yes', 'No'], description: 'Triggers Rollback if the build fails.')
+    }
+    environment {
+        AWS_DEFAULT_REGION = 'ap-south-1'
+        ECR_REGISTRY_URL = '185855166192.dkr.ecr.ap-south-1.amazonaws.com'
+        ECR_REPO_NAME = 'public-cloud-dev-pc-os-sidecar'
+
+        VAULT_ADD= "https://vault.ops.theacecloud.co/"
+        ENV_FILE = "${WORKSPACE}/.env"
+        SECRET_PATH = "development/dev2-pc-os-sidecar"
+        VAULT_CRED_ID = "vault-user-jenkins"
+
+        ENV_BUILD = "dev2"
+
+        DL_SD = "PublicCloudDevelopment@myrealdata.in"
+        DL_SOC = "infosec@myrealdata.in"
+        DL_DEVOPS = "publiccloud-devops@acecloudhosting.com"
+
+        IMAGE_TAG = ''
+        DOCKER_COMPOSE_PATH = '/root/dev2/docker-compose.yml'
+        
+        SONARQUBE_URL = 'https://sonar.theacecloud.co'
+        SONARQUBE_PROJECT_KEY = 'devTwo-pcOsSidecar'
+        SONARQUBE_CREDENTIALS_ID = 'sonarqube-token'
+        NODE_VERSION = '22'
+        SONAR_SCANNER_HOME = '/opt/sonar-scanner'
+
+        DEPENDENCY_TRACK_URL = 'https://dtrack.ops.theacecloud.co/api'
+        DEPENDENCY_TRACK_API_KEY = 'dtrack-token'
+        DEPENDENCY_TRACK_TAG = 'dev2-pc-os-sidecar'
+        PROJECT_NAME = "${SONARQUBE_PROJECT_KEY}"
+    }
+
+    stages {
+        stage('Checkout SCM') {
+            steps {
+                checkout scm
+                script {
+                    IMAGE_TAG = env.GIT_COMMIT.take(8)
+                    BRANCH_NAME = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                }
+            }
+        }
+
+        stage('Authenticate with Vault'){
+            steps{
+                withCredentials([usernamePassword(credentialsId: env.VAULT_CRED_ID, passwordVariable: 'VAULT_PASS', usernameVariable: 'VAULT_USER')]) {
+                    sh '''
+                        export VAULT_ADDR=${VAULT_ADD}
+                        vault login -method=userpass username=${VAULT_USER} password=${VAULT_PASS} | head -n 1 | cut -d' ' -f1-5
+                        vault kv get -format=json ${SECRET_PATH} > secrets.json
+                        jq -r '.data.data | to_entries | .[] | "\\(.key)=\\(.value)"' secrets.json > ${ENV_FILE}
+                        rm -rf secrets.json
+                        vault token renew > /dev/null
+                    '''
+                }
+            }
+        }
+        stage('Check .env File is present') {
+            steps {
+                script {
+                    sh "ls ${WORKSPACE}/.env"
+                }
+            }
+        }
+
+        stage('Run SonarQube Analysis') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: env.SONARQUBE_CREDENTIALS_ID, variable: 'SONARQUBE_TOKEN')]) {
+                        withSonarQubeEnv('sonar-server-url') {
+                            sh """
+                                export NVM_DIR="\$HOME/.nvm"
+                                [ -s "\$NVM_DIR/nvm.sh" ] && . "\$NVM_DIR/nvm.sh" > /dev/null 2>&1
+                                nvm use ${NODE_VERSION} > /dev/null 2>&1
+                                export PATH=\$SONAR_SCANNER_HOME/bin:\$PATH
+                                sonar-scanner \\
+                                    -Dsonar.projectKey=${SONARQUBE_PROJECT_KEY} \\
+                                    -Dsonar.sources=. \\
+                                    -Dsonar.host.url=${SONARQUBE_URL} \\
+                                    -Dsonar.login=\$SONARQUBE_TOKEN \\
+                                    -Dsonar.projectVersion=${IMAGE_TAG}
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Check SonarQube Quality Gate') {
+            steps {
+                withCredentials([string(credentialsId: "${SONARQUBE_CREDENTIALS_ID}", variable: 'SONARQUBE_TOKEN')]) {
+                    script {
+                        // Wait for SonarQube to finish processing 
+                        sleep(time: 30, unit: 'SECONDS') 
+
+                        // Fetch SonarQube Quality Gate status
+                        def response = sh(script: """
+                            curl -s -u "${SONARQUBE_TOKEN}:" "${SONARQUBE_URL}/api/qualitygates/project_status?projectKey=${SONARQUBE_PROJECT_KEY}"
+                        """, returnStdout: true).trim()
+
+                        echo "Project status response: $response"
+                        def jsonResponse = readJSON text: response
+                        def projectStatus = jsonResponse.projectStatus.status
+
+                        // Check the Quality Gate status
+                        if (projectStatus == 'OK') {
+                            echo "SonarQube Quality Gate passed."
+                        } else {
+                            if(params.SONAR_CHOICE=='No'){
+                                if (params.DL_SD_CHOICE=='Yes'){
+                                    sendEmail('Failed', "SonarQube Quality Gate failed.", "${env.DL_SD}, ${DL_DEVOPS}")
+                                }else {
+                                    sendEmail('Failed', "SonarQube Quality Gate failed.", "${DL_DEVOPS}")
+                                }
+                                error "SonarQube Quality Gate failed."
+                            }
+                            echo "SonarQube Quality Gate failed."
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    sh "docker build -t ${ECR_REGISTRY_URL}/${ECR_REPO_NAME}:${ENV_BUILD}-${IMAGE_TAG} ."
+                }
+            }
+        }
+
+        stage('CIS Docker Compliance') {
+            steps {
+                script {
+                    sh 'touch CIS-Docker-Benchmarks'
+                    sh 'export LANG=en_US.UTF-8 && export LC_ALL=en_US.UTF-8'
+                    sh "trivy image --severity HIGH,CRITICAL -f table -o CIS-Docker-Benchmarks --compliance docker-cis-1.6.0 ${ECR_REGISTRY_URL}/${ECR_REPO_NAME}:${ENV_BUILD}-${IMAGE_TAG}"
+                    sh 'cat CIS-Docker-Benchmarks'
+                    archiveArtifacts artifacts: 'CIS-Docker-Benchmarks', onlyIfSuccessful: false
+                    sh 'rm CIS-Docker-Benchmarks'
+                }
+            }
+        }
+
+        stage('Trivy Scan and Export Results') {
+            steps {
+                script {
+                    sh "trivy image --format cyclonedx  --output bom.xml ${ECR_REGISTRY_URL}/${ECR_REPO_NAME}:${ENV_BUILD}-${IMAGE_TAG}"
+                }
+            }
+        }
+
+        stage('Vulnerability Scanning') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: env.DEPENDENCY_TRACK_API_KEY, variable: 'DTRACK_API_KEY')]) {
+                        try {
+                            dependencyTrackPublisher artifact: 'bom.xml', projectName: "${PROJECT_NAME}", projectVersion: "${IMAGE_TAG}", synchronous: true, dependencyTrackApiKey: "${DTRACK_API_KEY}", failOnViolationFail: true, projectProperties: [isLatest: true, tags: ["${DEPENDENCY_TRACK_TAG}"]], autoCreateProjects: true, dependencyTrackPollingTimeout: 15
+                        } catch(Exception e){
+                            def exceptionMessage = e.toString().replace("\n", "<br>")
+                            echo "Exception Message: ${exceptionMessage}"
+                            if(params.DT_CHOICE=='No'){
+                                def errorMessage = """
+                                    Build failed on Dependency Track Stage.<br>
+                                    Here's the error in detail:<br>
+                                    ${exceptionMessage} <br>
+                                    Regards,<br>
+                                    DevOps Team
+                                """
+                                sendEmail('Failed', errorMessage, "${DL_DEVOPS}")
+                                error(errorMessage)
+                            }else{
+                                if(exceptionMessage.contains("Violations exceed configured thresholds")){
+                                    echo "Build failed on Dependency Track Stage."
+                                }else {
+                                    sendEmail('Failed', exceptionMessage, "${DL_DEVOPS}")
+                                    error(exceptionMessage)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Tag and Push Docker Image to ECR') {
+            steps {
+                script {
+                    sh "aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY_URL}"
+                    sh "docker push ${ECR_REGISTRY_URL}/${ECR_REPO_NAME}:${ENV_BUILD}-${IMAGE_TAG}"
+                }
+            }
+        }
+
+        stage('Clean local Storage and Delete docker Image')
+        {
+            steps{
+                sh "docker rmi ${ECR_REGISTRY_URL}/${ECR_REPO_NAME}:${ENV_BUILD}-${IMAGE_TAG} "
+                sh "rm -f .env"
+                sh "rm bom.xml"
+                sh 'echo  "Local Storage has been cleared. " '
+            }
+        }
+
+        stage('ECR Login and Deploy via Docker Compose') {
+            agent {
+                label 'docker-billing-cron'
+            }
+            steps {
+                script {
+                    sh "aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY_URL}"
+                    sh "docker pull ${ECR_REGISTRY_URL}/${ECR_REPO_NAME}:${ENV_BUILD}-${IMAGE_TAG}"
+                    sh "sed -i '/dev2-pc-os-sidecar:/,/image:/s|image:.*|image: ${ECR_REGISTRY_URL}/${ECR_REPO_NAME}:${ENV_BUILD}-${IMAGE_TAG}|' ${DOCKER_COMPOSE_PATH}"
+                    sh "cd /root/dev2/ && docker-compose up -d"
+                }
+            }
+        }
+
+        stage('Verify Container Running') {
+            agent { label 'docker-billing-cron' }
+
+            environment {
+                DEPLOY_DIR    = '/root/dev2'
+                COMPOSE_FILE  = "${DEPLOY_DIR}/docker-compose.yml"
+                STABLE_JSON   = "${DEPLOY_DIR}/stable-dev2-pc-os-sidecar.json"
+                TARGET_SVC    = 'dev2-pc-os-sidecar'
+                CANDIDATE_TAG = "${ENV_BUILD}-${IMAGE_TAG}"
+                CHECK_WAIT    = 10          
+            }
+
+            steps {
+                script {
+                    def loopResult = sh(
+                        returnStdout: true,
+                        script: """
+                            set +e                              
+                            timeout=${CHECK_WAIT}
+                            sleep 5
+
+                            result='ok'                        
+
+                            cid=\$(docker ps -a -f "name=${TARGET_SVC}" -q) || true
+                            if [ -z "\$cid" ]; then
+                                result='missing'
+                            else
+                                while [ \$timeout -gt 0 ]; do
+                                    state=\$(docker inspect -f '{{ .State.Status }}' "\$cid")
+
+                                    case "\$state" in
+                                        restarting|exited|dead|paused|removing)
+                                            result="\$state"
+                                            break                       
+                                            ;;
+                                    esac
+
+                                    sleep 1
+                                    timeout=\$((timeout-1))
+                                done
+                            fi
+
+                            echo "\$result"                     
+                        """
+                    ).trim()    
+                    env.STATE = "${loopResult}"
+                    echo "Container check returned: ${env.STATE}"
+
+                    if (loopResult != 'ok') {
+                        error "Container entered fatal '${loopResult}' state"
+                    }
+                }
+            }
+
+            post {
+                success {
+                    script {
+                        def stableMap = fileExists(env.STABLE_JSON) ? readJSON(file: env.STABLE_JSON) : [:]
+                        stableMap[env.TARGET_SVC] = env.CANDIDATE_TAG
+                        writeJSON(file: env.STABLE_JSON, json: stableMap)
+                        if (params.DL_SD_CHOICE=='Yes'){
+                            sendEmail('Success', "Build passed all stages successfully!", "${env.DL_SD}, ${DL_DEVOPS}")
+                        }else {
+                            sendEmail('Success', "Build passed all stages successfully!", "${DL_DEVOPS}")
+                        }                   
+                    }
+                }
+
+                failure {
+                    script {
+                        if (params.DL_SD_CHOICE=='Yes'){
+                            sendEmail('Failed', "Container Health Check Failed! Status: ${env.STATE}", "${env.DL_SD}, ${DL_DEVOPS}")
+                        }else {
+                            sendEmail('Failed', "Container Health Check Failed! Status: ${env.STATE}", "${DL_DEVOPS}")
+                        }  
+
+                        if (params.ROLLBACK=='No'){
+                            return
+                        }
+
+                        if (!fileExists(env.STABLE_JSON)) {
+                            if (params.DL_SD_CHOICE=='Yes'){
+                                sendEmail('Failed', "stable.json missing, cannot roll back!", "${env.DL_SD}, ${DL_DEVOPS}")
+                            }else {
+                                sendEmail('Failed', "stable.json missing, cannot roll back!", "${DL_DEVOPS}")
+                            }  
+                            return
+                        }
+
+                        def stableMap = readJSON(file: env.STABLE_JSON)
+                        def prev = stableMap[env.TARGET_SVC]
+
+                        if (prev) {
+                            echo " Rolling back to ${prev}"
+                            sh """
+                                sed -i '/${TARGET_SVC}:/,/image:/s|image:.*|image: ${ECR_REGISTRY_URL}/${ECR_REPO_NAME}:${prev}|' \
+                                    ${COMPOSE_FILE}
+                                cd ${DEPLOY_DIR} && docker-compose up -d
+                            """
+                            if (params.DL_SD_CHOICE=='Yes'){
+                                sendEmail('Warning', "Rollback completed successfully!", "${env.DL_SD}, ${DL_DEVOPS}")
+                            }else {
+                                sendEmail('Warning', "Rollback completed successfully!", "${DL_DEVOPS}")
+                            }  
+                        } else {
+                            echo "No previous tag stored for ${TARGET_SVC}"
+                            if (params.DL_SD_CHOICE=='Yes'){
+                                sendEmail('Failed', "Rollback failed, no stable tag!", "${env.DL_SD}, ${DL_DEVOPS}")
+                            }else {
+                                sendEmail('Failed', "Rollback failed, no stable tag!", "${DL_DEVOPS}")
+                            }  
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void sendEmail(status, body, to) {
+    def jobName = env.JOB_NAME
+    def buildNumber = env.BUILD_NUMBER
+    def pipelineStatus = status.toUpperCase() //currentBuild.result ?: 'UNKOWN'
+    def bannerColor = ['SUCCESS':'green', 'FAILED':'red', 'WARNING':'goldenrod'].get(pipelineStatus, 'grey')
+    def htmlBody = """<html>
+                <body>
+                    <div style="border: 4px solid ${bannerColor}; padding: 10px; font-family: Arial, sans-serif;">
+                        <h2 style="color: ${bannerColor};">${jobName} - Build ${buildNumber}</h2>
+                        <div style="background-color: ${bannerColor}; padding: 15px; color: white;">
+                            <h3>Pipeline Status: ${pipelineStatus}</h3>
+                            <p><strong>${currentBuild.getBuildCauses()[0].shortDescription}</strong> / ${currentBuild.getBuildCauses()[0].userId}</p>
+                            <p><strong>Build URL:</strong> <a href="${BUILD_URL}" style="color: white; text-decoration: none;">${BUILD_URL}</a></p>
+                            <p><strong>Build Duration: </strong>${currentBuild.durationString}</p>
+                            <p><strong>Branch:</strong> ${BRANCH_NAME}</p>
+                            <p>${body}</p>
+                        </div>
+                        <div style="margin-top: 20px;">
+                            <p><strong>Build Result:</strong> ${status}</p>
+                            <p><strong>Build Number:</strong> ${buildNumber}</p>
+                            <p><strong>Started At:</strong> ${BUILD_TIMESTAMP}</p>
+                            <p><strong>Executor:</strong> ${NODE_NAME}</p>
+                            <p><strong>Environment:</strong> ${NODE_LABELS}</p>
+                        </div>
+                        <p>For more details, check the <a href="${BUILD_URL}console"> console output </a>.</p>
+                    </div>
+                </body>
+                </html>"""
+    emailext (
+        subject: "${jobName} - Build ${buildNumber} - ${pipelineStatus}",
+        mimeType: 'text/html',
+        body: htmlBody,
+        from: "noreply@acecloudhosting.com",
+        to: to,
+        recipientProviders: [buildUser()]
+    )
+}

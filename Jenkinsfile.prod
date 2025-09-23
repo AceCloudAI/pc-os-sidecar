@@ -1,0 +1,116 @@
+pipeline {
+    agent {
+        label 'docker-billing-cron' 
+    }
+
+    environment {
+        AWS_DEFAULT_REGION = 'ap-south-1'
+        ECR_REGISTRY_URL = '185855166192.dkr.ecr.ap-south-1.amazonaws.com'
+        ECR_REPO_NAME = 'public-cloud-prod-pc-os-sidecar'
+        IMAGE_TAG = ''
+
+        SAMPLE_ENV_PATH = '/root/production/pc-os-sidecar.env'
+
+        DOCKER_COMPOSE_PATH = '/root/production/docker-compose.yml'
+        
+        DL_DEVOPS = 'publiccloud-devops@acecloudhosting.com'
+        DL_SD = "PublicCloudDevelopment@myrealdata.in"
+        
+    }
+
+    stages {
+        stage('Checkout SCM') {
+            steps {
+                checkout scm
+                script {
+                    IMAGE_TAG = env.GIT_COMMIT.take(8)
+                }
+            }
+        }
+
+        stage('Prepare .env File') {
+            steps {
+                script {
+                    sh "cp ${SAMPLE_ENV_PATH} ${WORKSPACE}/.env"
+                }
+            }
+        }
+
+        stage('Login to AWS ECR') {
+            steps {
+                script {
+                    sh "aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY_URL}"
+                }
+            }
+        }
+
+        stage('Build, Tag, and Push Docker Image') {
+            steps {
+                script {
+                    sh "docker build -t ${ECR_REPO_NAME}:${IMAGE_TAG} ."
+                    sh "docker tag ${ECR_REPO_NAME}:${IMAGE_TAG} ${ECR_REGISTRY_URL}/${ECR_REPO_NAME}:${IMAGE_TAG}"
+                    sh "docker push ${ECR_REGISTRY_URL}/${ECR_REPO_NAME}:${IMAGE_TAG}"
+                    sh 'echo "Clearing Locally build image"'
+                    sh "docker rmi ${ECR_REPO_NAME}:${IMAGE_TAG}"
+                }
+            }
+        }
+
+        stage('Update Docker Compose and Deploy') {
+            steps {
+                script {
+                    sh "sed -i '/production-pc-os-sidecar:/,/image:/s|image:.*|image: ${ECR_REGISTRY_URL}/${ECR_REPO_NAME}:${IMAGE_TAG}|' ${DOCKER_COMPOSE_PATH}"
+                    sh "cd /root/production/ && docker-compose up -d"
+                }
+            }
+        }
+    }
+    
+    post {
+        failure {
+            script {
+                sendEmail('Failed', "Build Failed for some reason. Please investigate the issue.", "${DL_DEVOPS},${DL_SD}")
+            }
+        }
+        success {
+            script {
+                sendEmail('Success', "Build Passed Successfully!", "${DL_DEVOPS},${DL_SD}")
+            }
+        }
+    }
+}
+
+void sendEmail(status, body, to) {
+    def jobName = env.JOB_NAME
+    def buildNumber = env.BUILD_NUMBER
+    def pipelineStatus = status.toUpperCase() //currentBuild.result ?: 'UNKOWN'
+    def bannerColor = status.toUpperCase() == 'SUCCESS' ? 'green' : 'red'
+    def htmlBody = """<html>
+                <body>
+                    <div style="border: 4px solid ${bannerColor}; padding: 10px; font-family: Arial, sans-serif;">
+                        <h2 style="color: ${bannerColor};">${jobName} - Build ${buildNumber}</h2>
+                        <div style="margin-top: 20px;">
+                            <h3>Pipeline Status: ${pipelineStatus.toUpperCase()}</h3>
+                            <p><strong>${currentBuild.getBuildCauses()[0].shortDescription}</strong> / ${currentBuild.getBuildCauses()[0].userId}</p>
+                            <p><strong>Build URL:</strong> <a href="${BUILD_URL}" style="color: black; text-decoration: none;">${BUILD_URL}</a></p>
+                            <p><strong>Build Duration: </strong>${currentBuild.durationString}</p>
+                            <p>${body}</p>
+                            <p><strong>Build Result:</strong> ${status}</p>
+                            <p><strong>Build Number:</strong> ${buildNumber}</p>
+                            <p><strong>Started At:</strong> ${BUILD_TIMESTAMP}</p>
+                            <p><strong>Executor:</strong> ${NODE_NAME}</p>
+                            <p><strong>Environment:</strong> ${NODE_LABELS}</p>
+                        </div>
+                        <p>For more details, check the <a href="${BUILD_URL}console"> console output </a>.</p>
+                    </div>
+                </body>
+                </html>"""
+    emailext (
+        subject: "${jobName} - Build ${buildNumber} - ${pipelineStatus.toUpperCase()}",
+        mimeType: 'text/html',
+        body: htmlBody,
+        from: "noreply@acecloudhosting.com",
+        to: to,
+        recipientProviders: [buildUser()]
+    )
+}
