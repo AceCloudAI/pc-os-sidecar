@@ -26,11 +26,6 @@ export class PCIDeviceService {
     const result = await this.pciDeviceRepository.find({
       where: { deleted_at: IsNull(), deleted: 0, instance_uuid: IsNull() },
     });
-    // let inventory = {};
-    // for (const res of result) {
-    //   inventory[res.product_id] = (inventory[res.product_id] || 0) + 1;
-    //   inventory[res.extra_info] = res.extra_info
-    // }
     
     return result;
   }
