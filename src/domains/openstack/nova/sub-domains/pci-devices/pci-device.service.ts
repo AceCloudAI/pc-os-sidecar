@@ -5,6 +5,7 @@ import { PCIDevice } from './entity/pci-device.entity';
 import { OPENSTACK_DB_CONNECTION_NAME, REGION_HOST_NAME } from 'src/common/constants';
 import { INVALID_REGION } from 'src/domains/cloud/language/en/cloud.en';
 import { REPOSITORY_NOT_SET_ERROR } from 'src/domains/openstack/nova/sub-domains/pci-devices/language/en/pci-devices.en';
+import { FlavorExtraSpec } from './entity/flavor.entity';
 
 @Injectable()
 export class PCIDeviceService {
@@ -17,15 +18,18 @@ export class PCIDeviceService {
     private readonly pciDeviceMumbaiRepository: Repository<PCIDevice>,
     @InjectRepository(PCIDevice, OPENSTACK_DB_CONNECTION_NAME.atlanta)
     private readonly pciDeviceAtlantaRepository: Repository<PCIDevice>,
+    @InjectRepository(FlavorExtraSpec, OPENSTACK_DB_CONNECTION_NAME.noida)
+    private readonly flavorExtraSpecNoidaRepository: Repository<FlavorExtraSpec>,
   ) { }
 
   async fetchAvailableInventory(): Promise<object> {
     if (!this.pciDeviceRepository) {
       throw new Error(REPOSITORY_NOT_SET_ERROR);
     }
-    const result = await this.pciDeviceRepository.find({
-      where: { deleted_at: IsNull(), deleted: 0, instance_uuid: IsNull() },
-    });
+    const result = await this.flavorExtraSpecNoidaRepository.query(
+      'SELECT * FROM flavor_extra_specs;'
+    );
+  
     
     return result;
   }
