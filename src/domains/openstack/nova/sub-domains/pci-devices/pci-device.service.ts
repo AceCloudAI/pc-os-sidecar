@@ -5,8 +5,7 @@ import { PCIDevice } from './entity/pci-device.entity';
 import { OPENSTACK_DB_CONNECTION_NAME, REGION_HOST_NAME } from 'src/common/constants';
 import { INVALID_REGION } from 'src/domains/cloud/language/en/cloud.en';
 import { REPOSITORY_NOT_SET_ERROR } from 'src/domains/openstack/nova/sub-domains/pci-devices/language/en/pci-devices.en';
-import { FlavorExtraSpec } from './entity/flavor.entity';
-
+import { FlavorExtraSpec } from 'src/domains/openstack/nova/sub-domains/pci-devices/entity/flavor.entity';
 @Injectable()
 export class PCIDeviceService {
   private pciDeviceRepository: Repository<PCIDevice>;

@@ -5,7 +5,7 @@ import { PCIDeviceService } from './pci-device.service';
 import { PCIDeviceController } from './pci-device.controller';
 import { PCIDevice } from './entity/pci-device.entity';
 import { OPENSTACK_DB_CONNECTION_NAME } from 'src/common/constants';
-import { FlavorExtraSpec } from './entity/flavor.entity';
+import { FlavorExtraSpec } from 'src/domains/openstack/nova/sub-domains/pci-devices/entity/flavor.entity';
 
 @Module({
   imports: [
